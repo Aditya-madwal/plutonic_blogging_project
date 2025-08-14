@@ -7,7 +7,15 @@ from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
 from .models import Blog, Like, Comment
 from .serializers import BlogSerializer, BlogDetailSerializer, CommentSerializer
-from .constants import *
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+PAGE_SIZE_BLOGS = int(os.getenv('PAGE_SIZE_BLOGS'))
+MAX_PAGE_SIZE_BLOGS = int(os.getenv('MAX_PAGE_SIZE_BLOGS'))
+PAGE_SIZE_COMMENTS = int(os.getenv('PAGE_SIZE_COMMENTS'))
+MAX_PAGE_SIZE_COMMENTS = int(os.getenv('MAX_PAGE_SIZE_COMMENTS'))
+COMMENTS_ON_DETAIL_BLOG = int(os.getenv('COMMENTS_ON_DETAIL_BLOG'))
 
 class BlogPagination(PageNumberPagination):
     page_size = PAGE_SIZE_BLOGS

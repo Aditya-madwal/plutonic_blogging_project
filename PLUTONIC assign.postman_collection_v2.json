@@ -12,11 +12,14 @@
 				{
 					"name": "register",
 					"request": {
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"username\": \"john_doe\",\r\n    \"email\": \"john@example.com\",\r\n    \"password\": \"strongpassword\"\r\n}",
+							"raw": "{\r\n    \"username\": \"john_doe1\",\r\n    \"email\": \"john@example.com\",\r\n    \"password\": \"strongpassword\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -41,11 +44,14 @@
 				{
 					"name": "login",
 					"request": {
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"username\": \"john_doe\",\r\n    \"password\": \"strongpassword\"\r\n}",
+							"raw": "{\r\n    \"username\": \"john_doe1\",\r\n    \"password\": \"strongpassword\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -75,7 +81,8 @@
 							{
 								"key": "Authorization",
 								"value": "Token {{TOKEN}}",
-								"type": "text"
+								"type": "text",
+								"disabled": true
 							}
 						],
 						"url": {
@@ -106,12 +113,13 @@
 							{
 								"key": "Authorization",
 								"value": "Token {{TOKEN}}",
-								"type": "text"
+								"type": "text",
+								"disabled": true
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"title\": \"sample blog 14\",\r\n    \"content\": \"This is my first blog post\"\r\n}\r\n",
+							"raw": "{\r\n    \"title\": \"sample blog 5\",\r\n    \"content\": \"This is my first blog post\"\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -119,13 +127,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/",
+							"raw": "{{BASE_URL}}/api/blogs/create_blog/",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"api",
 								"blogs",
+								"create_blog",
 								""
 							]
 						}
@@ -145,7 +154,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"title\": \"new sample blog\",\r\n    \"content\": \"This is my first blog post\"\r\n}\r\n",
+							"raw": "{\r\n    \"title\": \"new sample blog 1\",\r\n    \"content\": \"This is my first blog post1\"\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -153,7 +162,7 @@
 							}
 						},
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/1/",
+							"raw": "{{BASE_URL}}/api/blogs/1/update_blog/",
 							"host": [
 								"{{BASE_URL}}"
 							],
@@ -161,6 +170,7 @@
 								"api",
 								"blogs",
 								"1",
+								"update_blog",
 								""
 							]
 						}
@@ -179,7 +189,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/1/",
+							"raw": "{{BASE_URL}}/api/blogs/1/get_blog_by_id/",
 							"host": [
 								"{{BASE_URL}}"
 							],
@@ -187,6 +197,7 @@
 								"api",
 								"blogs",
 								"1",
+								"get_blog_by_id",
 								""
 							]
 						}
@@ -205,7 +216,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/3/",
+							"raw": "{{BASE_URL}}/api/blogs/3/delete_blog/",
 							"host": [
 								"{{BASE_URL}}"
 							],
@@ -213,6 +224,7 @@
 								"api",
 								"blogs",
 								"3",
+								"delete_blog",
 								""
 							]
 						}
@@ -227,18 +239,19 @@
 							{
 								"key": "Authorization",
 								"value": "Token {{TOKEN}}",
-								"type": "text"
+								"type": "text",
+								"disabled": true
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/",
+							"raw": "{{BASE_URL}}/api/blogs/list_blogs",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"api",
 								"blogs",
-								""
+								"list_blogs"
 							]
 						}
 					},
@@ -256,14 +269,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/6/details/",
+							"raw": "{{BASE_URL}}/api/blogs/1/details/",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"api",
 								"blogs",
-								"6",
+								"1",
 								"details",
 								""
 							]
@@ -288,7 +301,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/1/like/",
+							"raw": "{{BASE_URL}}/api/blogs/1/like_blog/",
 							"host": [
 								"{{BASE_URL}}"
 							],
@@ -296,7 +309,7 @@
 								"api",
 								"blogs",
 								"1",
-								"like",
+								"like_blog",
 								""
 							]
 						}
@@ -315,7 +328,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/1/unlike/",
+							"raw": "{{BASE_URL}}/api/blogs/1/unlike_blog/",
 							"host": [
 								"{{BASE_URL}}"
 							],
@@ -323,7 +336,7 @@
 								"api",
 								"blogs",
 								"1",
-								"unlike",
+								"unlike_blog",
 								""
 							]
 						}
@@ -348,7 +361,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"content\": \"this is a sample comment 9\"\r\n}\r\n",
+							"raw": "{\r\n    \"content\": \"this is a sample comment 8\"\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -356,15 +369,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/6/comment/",
+							"raw": "{{BASE_URL}}/api/blogs/1/comment_blog/",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"api",
 								"blogs",
-								"6",
-								"comment",
+								"1",
+								"comment_blog",
 								""
 							]
 						}
@@ -383,15 +396,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{BASE_URL}}/api/blogs/6/comments/",
+							"raw": "{{BASE_URL}}/api/blogs/1/list_comments/",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"api",
 								"blogs",
-								"6",
-								"comments",
+								"1",
+								"list_comments",
 								""
 							]
 						}
@@ -401,6 +414,16 @@
 			]
 		}
 	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{TOKEN}}",
+				"type": "string"
+			}
+		]
+	},
 	"event": [
 		{
 			"listen": "prerequest",
@@ -431,7 +454,7 @@
 		},
 		{
 			"key": "TOKEN",
-			"value": "78cc84f64ace79da47920c641c5393125f944bae",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1MjYzMzcyLCJpYXQiOjE3NTUxNzY5NzIsImp0aSI6IjAwN2NkYTIzYzMwZTQ2MWI4ZjY3NmY0NWYxMzZlNTkzIiwidXNlcl9pZCI6MX0._3sAqVkyh35940mSO55_6zFQ8490YIoVgVUdBRzDYXg",
 			"type": "string"
 		}
 	]
