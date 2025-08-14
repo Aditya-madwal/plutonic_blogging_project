@@ -9,6 +9,7 @@ from .models import Blog, Like, Comment
 from .serializers import BlogSerializer, BlogDetailSerializer, CommentSerializer
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
 PAGE_SIZE_BLOGS = int(os.getenv('PAGE_SIZE_BLOGS'))
@@ -17,10 +18,12 @@ PAGE_SIZE_COMMENTS = int(os.getenv('PAGE_SIZE_COMMENTS'))
 MAX_PAGE_SIZE_COMMENTS = int(os.getenv('MAX_PAGE_SIZE_COMMENTS'))
 COMMENTS_ON_DETAIL_BLOG = int(os.getenv('COMMENTS_ON_DETAIL_BLOG'))
 
+
 class BlogPagination(PageNumberPagination):
     page_size = PAGE_SIZE_BLOGS
     page_size_query_param = 'page_size'
     max_page_size = MAX_PAGE_SIZE_BLOGS
+
 
 class CommentPagination(PageNumberPagination):
     page_size = PAGE_SIZE_COMMENTS
@@ -35,8 +38,9 @@ class BlogViewSet(viewsets.ViewSet):
         return get_object_or_404(Blog, pk=pk)
 
     @swagger_auto_schema(
-        operation_description="List all blogs with pagination",
-        operation_summary="List Blogs"
+        operation_summary="List Blogs",
+        operation_description="Retrieve a paginated list of all blogs.",
+        responses={200: BlogSerializer(many=True)}
     )
     @action(detail=False, methods=['get'])
     def list_blogs(self, request):
@@ -47,9 +51,10 @@ class BlogViewSet(viewsets.ViewSet):
         return paginator.get_paginated_response(serializer.data)
 
     @swagger_auto_schema(
-        operation_description="Create a new blog",
+        operation_summary="Create Blog",
+        operation_description="Create a new blog post. **Requires authentication**.",
         request_body=BlogSerializer,
-        operation_summary="Create Blog"
+        responses={201: BlogSerializer}
     )
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def create_blog(self, request):
@@ -60,8 +65,9 @@ class BlogViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
-        operation_description="Retrieve a single blog",
-        operation_summary="Get Blog"
+        operation_summary="Get Blog by ID",
+        operation_description="Retrieve a blog by its ID.",
+        responses={200: BlogSerializer, 404: "Not Found"}
     )
     @action(detail=True, methods=['get'])
     def get_blog_by_id(self, request, pk=None):
@@ -70,9 +76,10 @@ class BlogViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     @swagger_auto_schema(
-        operation_description="Update a blog",
+        operation_summary="Update Blog",
+        operation_description="Update a blog (partial update). **Only the author can update.**",
         request_body=BlogSerializer,
-        operation_summary="Update Blog"
+        responses={200: BlogSerializer, 403: "Forbidden", 404: "Not Found"}
     )
     @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
     def update_blog(self, request, pk=None):
@@ -86,8 +93,9 @@ class BlogViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
-        operation_description="Delete a blog",
-        operation_summary="Delete Blog"
+        operation_summary="Delete Blog",
+        operation_description="Delete a blog post. **Only the author can delete.**",
+        responses={200: "Blog deleted", 403: "Forbidden", 404: "Not Found"}
     )
     @action(detail=True, methods=['delete'], permission_classes=[permissions.IsAuthenticated])
     def delete_blog(self, request, pk=None):
@@ -98,8 +106,11 @@ class BlogViewSet(viewsets.ViewSet):
         return Response({"message": "Blog deleted successfully"}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
-        operation_description="Like a blog",
-        operation_summary="Like Blog"
+        operation_summary="Like Blog",
+        operation_description="Like a blog post. Creates a like if it doesn't already exist.",
+        responses={200: openapi.Response("Success", openapi.Schema(type=openapi.TYPE_OBJECT, properties={
+            "message": openapi.Schema(type=openapi.TYPE_STRING)
+        }))}
     )
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like_blog(self, request, pk=None):
@@ -108,8 +119,11 @@ class BlogViewSet(viewsets.ViewSet):
         return Response({"message": "Blog liked"})
 
     @swagger_auto_schema(
-        operation_description="Unlike a blog",
-        operation_summary="Unlike Blog"
+        operation_summary="Unlike Blog",
+        operation_description="Remove a like from a blog post.",
+        responses={200: openapi.Response("Success", openapi.Schema(type=openapi.TYPE_OBJECT, properties={
+            "message": openapi.Schema(type=openapi.TYPE_STRING)
+        }))}
     )
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def unlike_blog(self, request, pk=None):
@@ -118,25 +132,25 @@ class BlogViewSet(viewsets.ViewSet):
         return Response({"message": "Blog unliked"})
 
     @swagger_auto_schema(
-        operation_description="Add a comment to a blog",
         operation_summary="Add Comment",
+        operation_description="Add a comment to a blog post. **Requires authentication**.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['content'],
-            properties={
-                'content': openapi.Schema(type=openapi.TYPE_STRING)
-            }
-        )
+            properties={'content': openapi.Schema(type=openapi.TYPE_STRING)}
+        ),
+        responses={201: CommentSerializer}
     )
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def comment_blog(self, request, pk=None):
         blog = self.get_blog(pk)
         comment = Comment.objects.create(user=request.user, blog=blog, content=request.data.get("content"))
-        return Response(CommentSerializer(comment).data)
+        return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
 
     @swagger_auto_schema(
-        operation_description="List all comments for a blog (paginated)",
-        operation_summary="List Comments"
+        operation_summary="List Comments",
+        operation_description="Retrieve all comments for a blog (paginated).",
+        responses={200: CommentSerializer(many=True)}
     )
     @action(detail=True, methods=['get'])
     def list_comments(self, request, pk=None):
@@ -148,8 +162,9 @@ class BlogViewSet(viewsets.ViewSet):
         return paginator.get_paginated_response(serializer.data)
 
     @swagger_auto_schema(
-        operation_description="Get blog details with latest comments",
-        operation_summary="Blog Details"
+        operation_summary="Blog Details",
+        operation_description="Retrieve blog details with the latest comments.",
+        responses={200: BlogDetailSerializer}
     )
     @action(detail=True, methods=['get'])
     def details(self, request, pk=None):
