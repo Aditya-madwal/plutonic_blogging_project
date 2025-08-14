@@ -1,3 +1,4 @@
 Django>=5.0
 djangorestframework>=3.10
 drf-yasg>=1.21.7
+djangorestframework-simplejwt>=5.3.0

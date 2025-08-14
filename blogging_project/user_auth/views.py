@@ -2,18 +2,13 @@ from rest_framework import viewsets, permissions, status
 from django.contrib.auth import authenticate
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import RegisterSerializer, UserSerializer
 
 class AuthViewSet(viewsets.ViewSet):
-    """
-    Authentication ViewSet for user registration, login, and profile management.
-    
-    Provides endpoints for user registration, authentication, and profile retrieval.
-    """
     permission_classes = [permissions.AllowAny]
 
     @swagger_auto_schema(
@@ -27,7 +22,8 @@ class AuthViewSet(viewsets.ViewSet):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'user': openapi.Schema(type=openapi.TYPE_OBJECT, description="User data"),
-                        'token': openapi.Schema(type=openapi.TYPE_STRING, description="Authentication token")
+                        'access': openapi.Schema(type=openapi.TYPE_STRING, description="Access token"),
+                        'refresh': openapi.Schema(type=openapi.TYPE_STRING, description="Refresh token")
                     }
                 )
             ),
@@ -36,17 +32,21 @@ class AuthViewSet(viewsets.ViewSet):
     )
     @action(detail=False, methods=['post'])
     def register(self, request):
-        """
-        Register a new user account and return user data with authentication token.
-        """
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        token, _ = Token.objects.get_or_create(user=user)
-        return Response({"user": UserSerializer(user).data, "token": token.key}, status=status.HTTP_201_CREATED)
+        
+        refresh = RefreshToken.for_user(user)
+        access_token = refresh.access_token
+        
+        return Response({
+            "user": UserSerializer(user).data, 
+            "access": str(access_token),
+            "refresh": str(refresh)
+        }, status=status.HTTP_201_CREATED)
 
     @swagger_auto_schema(
-        operation_description="Authenticate user and return authentication token",
+        operation_description="Authenticate user and return JWT tokens",
         operation_summary="User Login",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -63,7 +63,8 @@ class AuthViewSet(viewsets.ViewSet):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         'user': openapi.Schema(type=openapi.TYPE_OBJECT, description="User data"),
-                        'token': openapi.Schema(type=openapi.TYPE_STRING, description="Authentication token")
+                        'access': openapi.Schema(type=openapi.TYPE_STRING, description="Access token"),
+                        'refresh': openapi.Schema(type=openapi.TYPE_STRING, description="Refresh token")
                     }
                 )
             ),
@@ -72,16 +73,20 @@ class AuthViewSet(viewsets.ViewSet):
     )
     @action(detail=False, methods=['post'])
     def login(self, request):
-        """
-        Authenticate user with username and password, return user data and authentication token.
-        """
         username = request.data.get("username")
         password = request.data.get("password")
         user = authenticate(username=username, password=password)
         if not user:
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-        token, _ = Token.objects.get_or_create(user=user)
-        return Response({"user": UserSerializer(user).data, "token": token.key})
+        
+        refresh = RefreshToken.for_user(user)
+        access_token = refresh.access_token
+        
+        return Response({
+            "user": UserSerializer(user).data, 
+            "access": str(access_token),
+            "refresh": str(refresh)
+        })
 
     @swagger_auto_schema(
         operation_description="Get current authenticated user's profile information",
@@ -93,7 +98,4 @@ class AuthViewSet(viewsets.ViewSet):
     )
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def me(self, request):
-        """
-        Retrieve the current authenticated user's profile information.
-        """
         return Response(UserSerializer(request.user).data)
