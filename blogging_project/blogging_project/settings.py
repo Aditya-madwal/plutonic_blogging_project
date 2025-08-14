@@ -161,4 +161,4 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 }
 
-# AUTH_USER_MODEL = 'user_auth.User'
+AUTH_USER_MODEL = 'user_auth.User'
