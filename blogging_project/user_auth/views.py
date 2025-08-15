@@ -100,3 +100,38 @@ class AuthViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def me(self, request):
         return Response(UserSerializer(request.user).data)
+
+    @swagger_auto_schema(
+        operation_description="Refresh access token using a valid refresh token",
+        operation_summary="Refresh Access Token",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['refresh'],
+            properties={
+                'refresh': openapi.Schema(type=openapi.TYPE_STRING, description="Refresh token")
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                "Token refreshed",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'access': openapi.Schema(type=openapi.TYPE_STRING, description="New access token")
+                    }
+                )
+            ),
+            400: "Bad Request - Invalid refresh token"
+        }
+    )
+    @action(detail=False, methods=['post'])
+    def refresh(self, request):
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response({"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            refresh = RefreshToken(refresh_token)
+            access_token = refresh.access_token
+            return Response({"access": str(access_token)}, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({"error": "Invalid refresh token"}, status=status.HTTP_400_BAD_REQUEST)
