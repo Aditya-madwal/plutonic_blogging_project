@@ -58,10 +58,10 @@ class BlogViewSet(viewsets.ViewSet):
     )
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def create_blog(self, request):
-        serializer = BlogSerializer(data=request.data)
+        serializer = BlogSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save(author=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            blog = serializer.save()
+            return Response(BlogSerializer(blog, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
@@ -86,10 +86,10 @@ class BlogViewSet(viewsets.ViewSet):
         blog = self.get_blog(pk)
         if blog.author != request.user:
             return Response({"error": "You can only modify your own blogs"}, status=status.HTTP_403_FORBIDDEN)
-        serializer = BlogSerializer(blog, data=request.data, partial=True)
+        serializer = BlogSerializer(blog, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            blog = serializer.save()
+            return Response(BlogSerializer(blog, context={'request': request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
@@ -144,8 +144,13 @@ class BlogViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def comment_blog(self, request, pk=None):
         blog = self.get_blog(pk)
-        comment = Comment.objects.create(user=request.user, blog=blog, content=request.data.get("content"))
-        return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+        serializer = CommentSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            comment = serializer.save()
+            comment.blog = blog
+            comment.save()
+            return Response(CommentSerializer(comment, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_summary="List Comments",
@@ -158,7 +163,7 @@ class BlogViewSet(viewsets.ViewSet):
         queryset = blog.comments.all().order_by('-created_at')
         paginator = CommentPagination()
         page = paginator.paginate_queryset(queryset, request)
-        serializer = CommentSerializer(page, many=True)
+        serializer = CommentSerializer(page, many=True, context={'request': request})
         return paginator.get_paginated_response(serializer.data)
 
     @swagger_auto_schema(
@@ -170,6 +175,23 @@ class BlogViewSet(viewsets.ViewSet):
     def details(self, request, pk=None):
         blog = self.get_blog(pk)
         latest_comments = blog.comments.all().order_by('-created_at')[:COMMENTS_ON_DETAIL_BLOG]
-        blog_data = BlogDetailSerializer(blog).data
-        blog_data['latest_comments'] = CommentSerializer(latest_comments, many=True).data
+        blog_data = BlogDetailSerializer(blog, context={'request': request}).data
+        blog_data['latest_comments'] = CommentSerializer(latest_comments, many=True, context={'request': request}).data
         return Response(blog_data)
+
+    @swagger_auto_schema(
+        operation_summary="Update Comment",
+        operation_description="Update a comment. Only the comment's author can update.",
+        request_body=CommentSerializer,
+        responses={200: CommentSerializer, 403: "Forbidden", 404: "Not Found"}
+    )
+    @action(detail=True, methods=['patch'], url_path='update_comment/(?P<comment_id>[^/.]+)', permission_classes=[permissions.IsAuthenticated])
+    def update_comment(self, request, pk=None, comment_id=None):
+        comment = get_object_or_404(Comment, pk=comment_id)
+        if comment.user != request.user:
+            return Response({"error": "You can only update your own comments"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = CommentSerializer(comment, data=request.data, partial=True, context={'request': request})
+        if serializer.is_valid():
+            comment = serializer.save()
+            return Response(CommentSerializer(comment, context={'request': request}).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
