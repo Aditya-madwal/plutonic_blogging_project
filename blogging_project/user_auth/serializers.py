@@ -4,9 +4,13 @@ from user_auth.models import User
 from django.contrib.auth.hashers import make_password
 
 class UserSerializer(serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email']
+        fields = ['id', 'username', 'email', 'created_by', 'is_active']
+        read_only_fields = ['id', 'username', 'email', 'created_by', 'is_active']
 
 
 class RegisterSerializer(serializers.ModelSerializer):

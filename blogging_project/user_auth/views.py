@@ -1,20 +1,69 @@
 from rest_framework import viewsets, permissions, status
-from django.contrib.auth import authenticate
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-# from django.contrib.auth.models import User
 from user_auth.models import User
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import RegisterSerializer, UserSerializer
 
+class IsSuperUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_superuser
+
 class AuthViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Register a new user account",
-        operation_summary="User Registration",
+        operation_description="Create a superuser and return JWT tokens",
+        operation_summary="Create Superuser",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['username', 'password', 'email'],
+            properties={
+                'username': openapi.Schema(type=openapi.TYPE_STRING),
+                'password': openapi.Schema(type=openapi.TYPE_STRING),
+                'email': openapi.Schema(type=openapi.TYPE_STRING)
+            }
+        ),
+        responses={
+            201: openapi.Response(
+                "Superuser created",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'user': openapi.Schema(type=openapi.TYPE_OBJECT),
+                        'access': openapi.Schema(type=openapi.TYPE_STRING),
+                        'refresh': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
+                )
+            ),
+            400: "Bad Request"
+        }
+    )
+    @action(detail=False, methods=['post'])
+    def create_superuser(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        email = request.data.get("email")
+        if not username or not password or not email:
+            return Response({"error": "Missing fields"}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username=username).exists():
+            return Response({"error": "Username already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        user = User.objects.create_superuser(username=username, password=password, email=email)
+        user.is_active = True
+        user.save()
+        refresh = RefreshToken.for_user(user)
+        access_token = refresh.access_token
+        return Response({
+            "user": UserSerializer(user).data,
+            "access": str(access_token),
+            "refresh": str(refresh)
+        }, status=status.HTTP_201_CREATED)
+
+    @swagger_auto_schema(
+        operation_description="Register a new user account (superuser only)",
+        operation_summary="User Registration (Superuser only)",
         request_body=RegisterSerializer,
         responses={
             201: openapi.Response(
@@ -22,26 +71,27 @@ class AuthViewSet(viewsets.ViewSet):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'user': openapi.Schema(type=openapi.TYPE_OBJECT, description="User data"),
-                        'access': openapi.Schema(type=openapi.TYPE_STRING, description="Access token"),
-                        'refresh': openapi.Schema(type=openapi.TYPE_STRING, description="Refresh token")
+                        'user': openapi.Schema(type=openapi.TYPE_OBJECT),
+                        'access': openapi.Schema(type=openapi.TYPE_STRING),
+                        'refresh': openapi.Schema(type=openapi.TYPE_STRING)
                     }
                 )
             ),
-            400: "Bad Request - Invalid registration data"
+            400: "Bad Request"
         }
     )
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[IsSuperUser])
     def register(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        
+        # Set created_by to the superuser who created this user
+        user.created_by = request.user
+        user.save()
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
-        
         return Response({
-            "user": UserSerializer(user).data, 
+            "user": UserSerializer(user).data,
             "access": str(access_token),
             "refresh": str(refresh)
         }, status=status.HTTP_201_CREATED)
