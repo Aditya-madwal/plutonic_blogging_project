@@ -6,7 +6,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
 from .models import Blog, Like, Comment
-from .serializers import BlogSerializer, BlogDetailSerializer, CommentSerializer
+from .serializers import BlogSerializer, BlogDetailSerializer, CommentSerializer, LikeSerializer
 import os
 from dotenv import load_dotenv
 
@@ -44,7 +44,7 @@ class BlogViewSet(viewsets.ViewSet):
     )
     @action(detail=False, methods=['get'])
     def list_blogs(self, request):
-        queryset = Blog.objects.all().order_by('-created_at')
+        queryset = Blog.objects.filter(author__is_active=True).order_by('-created_at')
         if queryset.exists():
             paginator = BlogPagination()
             page = paginator.paginate_queryset(queryset, request)
@@ -76,6 +76,8 @@ class BlogViewSet(viewsets.ViewSet):
     def get_blog_by_id(self, request, pk=None):
         try:
             blog = self.get_blog(pk)
+            if not blog.author.is_active:
+                return Response(None, status=status.HTTP_404_NOT_FOUND)
             serializer = BlogSerializer(blog)
             return Response(serializer.data)
         except Blog.DoesNotExist:
@@ -127,10 +129,16 @@ class BlogViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like_blog(self, request, pk=None):
         blog = self.get_blog(pk)
-        if blog is None:
+        if not blog.author.is_active:
             return Response({"error": "Blog not found"}, status=status.HTTP_404_NOT_FOUND)
-        Like.objects.get_or_create(user=request.user, blog=blog)
-        return Response({"message": "Blog liked"})
+        if Like.objects.filter(user=request.user, blog=blog).exists():
+            return Response({"message": "Blog liked"})
+        data = {'blog': blog.id}
+        serializer = LikeSerializer(data=data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Blog liked"})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_summary="Unlike Blog",
@@ -142,7 +150,7 @@ class BlogViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def unlike_blog(self, request, pk=None):
         blog = self.get_blog(pk)
-        if blog is None:
+        if not blog.author.is_active:
             return Response({"error": "Blog not found"}, status=status.HTTP_404_NOT_FOUND)
         Like.objects.filter(user=request.user, blog=blog).delete()
         return Response({"message": "Blog unliked"})
@@ -160,12 +168,11 @@ class BlogViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def comment_blog(self, request, pk=None):
         blog = self.get_blog(pk)
-        if blog is None:
+        if not blog.author.is_active:
             return Response({"error": "Blog not found"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = CommentSerializer(data=request.data, context={'request': request})
+        serializer = CommentSerializer(data=request.data, context={'request': request, 'blog' : blog})
         if serializer.is_valid():
             comment = serializer.save()
-            comment.blog = blog
             comment.save()
             return Response(CommentSerializer(comment, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -178,9 +185,9 @@ class BlogViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['get'])
     def list_comments(self, request, pk=None):
         blog = self.get_blog(pk)
-        if blog is None:
+        if not blog.author.is_active:
             return Response([], status=status.HTTP_200_OK)
-        queryset = blog.comments.all().order_by('-created_at')
+        queryset = blog.comments.filter(user__is_active=True).order_by('-created_at')
         if queryset.exists():
             paginator = CommentPagination()
             page = paginator.paginate_queryset(queryset, request)
@@ -197,9 +204,9 @@ class BlogViewSet(viewsets.ViewSet):
     @action(detail=True, methods=['get'])
     def details(self, request, pk=None):
         blog = self.get_blog(pk)
-        if blog is None:
+        if not blog.author.is_active:
             return Response(None, status=status.HTTP_404_NOT_FOUND)
-        latest_comments = blog.comments.all().order_by('-created_at')[:COMMENTS_ON_DETAIL_BLOG]
+        latest_comments = blog.comments.filter(user__is_active=True).order_by('-created_at')[:COMMENTS_ON_DETAIL_BLOG]
         blog_data = BlogDetailSerializer(blog, context={'request': request}).data
         blog_data['latest_comments'] = CommentSerializer(latest_comments if latest_comments else [], many=True, context={'request': request}).data
         return Response(blog_data)
@@ -212,10 +219,7 @@ class BlogViewSet(viewsets.ViewSet):
     )
     @action(detail=True, methods=['patch'], url_path='update_comment/(?P<comment_id>[^/.]+)', permission_classes=[permissions.IsAuthenticated])
     def update_comment(self, request, pk=None, comment_id=None):
-        try:
-            comment = get_object_or_404(Comment, pk=comment_id)
-        except Comment.DoesNotExist:
-            return Response(None, status=status.HTTP_404_NOT_FOUND)
+        comment = get_object_or_404(Comment, pk=comment_id)
         if comment.user != request.user:
             return Response({"error": "You can only update your own comments"}, status=status.HTTP_403_FORBIDDEN)
         serializer = CommentSerializer(comment, data=request.data, partial=True, context={'request': request})

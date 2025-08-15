@@ -4,11 +4,12 @@ from .models import Blog, Like, Comment
 class BlogSerializer(serializers.ModelSerializer):
     likes_count = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Blog
-        fields = ['id', 'author', 'title', 'content', 'created_at', 'updated_at', 'likes_count', 'comments_count']
-        read_only_fields = ['author']
+        fields = ['id', 'author', 'title', 'content', 'created_at', 'updated_at', 'likes_count', 'comments_count', 'created_by']
+        read_only_fields = ['author', 'created_by']
 
     def get_likes_count(self, obj):
         return Like.objects.filter(blog=obj).count()
@@ -18,6 +19,7 @@ class BlogSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['author'] = self.context['request'].user
+        validated_data['created_by'] = self.context['request'].user.created_by
         return Blog.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
@@ -28,13 +30,17 @@ class BlogSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = Comment
-        fields = ['id', 'user', 'content', 'created_at']
-        read_only_fields = ['user']
+        fields = ['id', 'user', 'content', 'created_at', 'created_by']
+        read_only_fields = ['user', 'created_by']
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
+        validated_data['created_by'] = self.context['request'].user.created_by
+        validated_data['blog'] = self.context['blog']
         return Comment.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
@@ -45,13 +51,16 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class LikeSerializer(serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = Like
         fields = '__all__'
-        read_only_fields = ['user']
+        read_only_fields = ['user', 'created_by']
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
+        validated_data['created_by'] = self.context['request'].user.created_by
         return Like.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
@@ -65,13 +74,14 @@ class BlogDetailSerializer(serializers.ModelSerializer):
     likes_count = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
     latest_comments = serializers.SerializerMethodField()
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Blog
         fields = [
             'id', 'author', 'title', 'content',
             'created_at', 'updated_at',
-            'likes_count', 'comments_count', 'latest_comments'
+            'likes_count', 'comments_count', 'latest_comments', 'created_by'
         ]
 
     def get_likes_count(self, obj):
